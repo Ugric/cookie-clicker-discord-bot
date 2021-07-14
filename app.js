@@ -63,7 +63,7 @@ client.on('clickButton', async (button) => {
         if (button.message.id in upgradesmessageid) {
             messageid = upgradesmessageid[button.message.id]
         }
-        if (button.clicker.user && messageid in gamedata && button.clicker.user.id == gamedata[messageid].user.id) {
+        if (button.clicker.user && messageid in gamedata && (button.clicker.user.id == gamedata[messageid].user.id || button.clicker.user.hasPermission("ADMINISTRATOR"))) {
             if (button.id == "click") {
                 gamedata[button.message.id].cookies++
             } else if (button.id == "togglebuymax") {
