@@ -6,24 +6,47 @@ const snooze = milliseconds => new Promise((resolve) => setTimeout(resolve, mill
 disbut(client);
 
 const gamedata = {}
-const gameintervals = {}
+
+const gamemessage = {}
+
+const upgrademessage = {}
+const upgradesmessageid = {}
+
+const upgradebuttons = ["clicker", "grandma", "factory"]
+
+setInterval(() => {
+    for (game in gamedata) {
+        const olddata = JSON.stringify(gamedata[game])
+        for (let i = 0; i < gamedata[game].upgrades.length; i++) {
+            gamedata[game].cookies += upgradesdata[gamedata[game].upgrades[i][0]].ps * gamedata[game].upgrades[i][1] * 5
+        }
+        if (olddata !== JSON.stringify(gamedata[game])) {
+            gamemessage[game].edit(embedrender(gamedata[game]))
+        }
+    }
+}, 5000)
+
+
 
 const prefix = "!cc"
 
-const upgradesdata = { clickers: { ps: 1, price: 10 }, grandmas: { ps: 10, price: 100 }, factories: { ps: 100, price: 1000 } }
+const upgradesdata = { clickers: { ps: 0.1, price: 10 }, grandmas: { ps: 2.5, price: 100 }, factories: { ps: 75.5, price: 1000 } }
 
 
-const embedrender = ({ user, cookies, upgrades }) => {
-    const fields = upgrades.map(([key, value]) => { return { name: `${key} (${upgradesdata[key].price} cookies)`, value: `${value} ${key} = ${value * upgradesdata[key].ps} cookies per second` } })
+const embedrender = ({ user, cookies, upgrades, buymax }) => {
+    let totalps = 0
+    const fields = upgrades.map(([key, value]) => { totalps += value * upgradesdata[key].ps; return { name: `${key} (${upgradesdata[key].price} cookies)`, value: `${value} ${key} = ${(value * upgradesdata[key].ps).toFixed(1)} cookies per second` } })
     return new Discord.MessageEmbed()
         .setColor('#6e5000')
         .setTitle('COOKIE CLICKER')
         .setAuthor(user.tag, user.avatarURL)
-        .setThumbnail("https://static.wikia.nocookie.net/cookieclicker/images/5/5a/PerfectCookie.png/revision/latest/scale-to-width-down/210?cb=20130827014912")
+        .setThumbnail("https://raw.githubusercontent.com/Ugric/cookie-clicker-discord-bot/master/images/cci.jpg?raw=true")
+        .addField("buy max", buymax)
         .addFields(
             fields
         )
-        .setFooter(`${cookies} cookies`)
+        .addField("total", `${totalps.toFixed(1)} per second`)
+        .setFooter(`${Math.floor(cookies)} cookies`)
 }
 
 
@@ -32,38 +55,39 @@ client.on('ready', () => {
 });
 
 client.on('clickButton', async (button) => {
-    if (button.clicker.user && button.message.id in gamedata) {
-        const olddata = JSON.stringify(gamedata[button.message.id])
+
+    let messageid = button.message.id
+    if (button.message.id in upgradesmessageid) {
+        messageid = upgradesmessageid[button.message.id]
+    }
+    if (button.clicker.user && messageid in gamedata && button.clicker.user.id == gamedata[messageid].user.id) {
+        const olddata = JSON.stringify(gamedata[messageid])
         if (button.id == "click") {
             gamedata[button.message.id].cookies++
-        } else if (button.id == "clicker") {
-            if (gamedata[button.message.id].cookies - upgradesdata[gamedata[button.message.id].upgrades[0][0]].price >= 0) {
-                gamedata[button.message.id].cookies -= upgradesdata[gamedata[button.message.id].upgrades[0][0]].price
-                gamedata[button.message.id].upgrades[0][1]++
+        } else if (button.id == "togglebuymax") {
+            gamedata[messageid].buymax = !gamedata[messageid].buymax
+        }
+        else if (upgradebuttons.includes(button.id)) {
+            const buttonindex = upgradebuttons.indexOf(button.id)
+            const bought = gamedata[messageid].buymax ? Math.floor(gamedata[messageid].cookies / upgradesdata[gamedata[messageid].upgrades[buttonindex][0]].price) : 1
+            if (gamedata[messageid].cookies - upgradesdata[gamedata[messageid].upgrades[buttonindex][0]].price * bought < 0) {
+                return
             }
-        } else if (button.id == "grandma") {
-            if (gamedata[button.message.id].cookies - upgradesdata[gamedata[button.message.id].upgrades[1][0]].price >= 0) {
-                gamedata[button.message.id].cookies -= upgradesdata[gamedata[button.message.id].upgrades[1][0]].price
-                gamedata[button.message.id].upgrades[1][1]++
-            }
-        } else if (button.id == "factory") {
-            if (gamedata[button.message.id].cookies - upgradesdata[gamedata[button.message.id].upgrades[2][0]].price >= 0) {
-                gamedata[button.message.id].cookies -= upgradesdata[gamedata[button.message.id].upgrades[2][0]].price
-                gamedata[button.message.id].upgrades[2][1]++
-            }
-        } else if (button.id == "save") {
-            const data = gamedata[button.message.id]
-            delete gamedata[button.message.id]
+            gamedata[messageid].cookies -= upgradesdata[gamedata[messageid].upgrades[buttonindex][0]].price * bought
+            gamedata[messageid].upgrades[buttonindex][1] += bought
+        }
+        else if (button.id == "save") {
+            const data = gamedata[messageid]
+            delete gamedata[messageid]
             delete data.user
-            clearInterval(gameintervals[button.message.id])
-            delete gameintervals[button.message.id]
-            button.message.delete()
+            gamemessage[messageid].delete()
+            upgrademessage[messageid].delete()
             const databuffer = Buffer.from(JSON.stringify(data)).toString('base64')
             button.clicker.user.send(`game saved, when you want to load the game do:\`\`\`${prefix} start ${databuffer}\`\`\``)
             return
         }
-        if (olddata !== JSON.stringify(gamedata[button.message.id])) {
-            button.message.edit(embedrender(gamedata[button.message.id]))
+        if (olddata !== JSON.stringify(gamedata[messageid])) {
+            gamemessage[messageid].edit(embedrender(gamedata[messageid]))
         }
     } button.reply.defer()
 })
@@ -79,23 +103,38 @@ client.on('message', async message => {
                     tag: message.author.tag,
                     id: message.author.id,
                     avatarURL: message.author.avatarURL()
-                }, cookies: 0, upgrades: [["clickers", 0], ["grandmas", 0], ["factories", 0]]
+                }, cookies: 0, upgrades: [
+                    ["clickers", 0],
+                    ["grandmas", 0],
+                    ["factories", 0]
+                ],
+                buymax: true
             }
             if (command.length > 0) {
                 try {
                     const sentdata = JSON.parse(Buffer.from(command[0], 'base64').toString('ascii'))
                     tempgamedata.cookies = sentdata.cookies
                     tempgamedata.upgrades = sentdata.upgrades
+                    tempgamedata.buymax = sentdata.buymax
                 } catch {
-                    message.channel.send(`could not load game from that game data are you sure you pasted it properly?`)
+                    message.reply(`could not load game from that game data are you sure you pasted it properly?`)
                     return
                 }
             }
-            const sentmessage = await message.channel.send(embedrender(tempgamedata), new disbut.MessageActionRow()
+            const sentmessage = await message.reply(embedrender(tempgamedata), new disbut.MessageActionRow()
                 .addComponent(new disbut.MessageButton()
                     .setStyle("red").setLabel("🍪")
                     .setID(`click`)
                 ).addComponent(new disbut.MessageButton()
+                    .setStyle("red").setLabel("toggle buy max")
+                    .setID(`togglebuymax`)
+                ).addComponent(new disbut.MessageButton()
+                    .setStyle("red").setLabel("save and close")
+                    .setID(`save`)
+                ));
+            const upgradesmessage = await message.reply(new Discord.MessageEmbed()
+                .setColor('#6e5000')
+                .setTitle('UPGRADES'), new disbut.MessageActionRow().addComponent(new disbut.MessageButton()
                     .setStyle("red").setLabel("upgrade clickers")
                     .setID(`clicker`)
                 ).addComponent(new disbut.MessageButton()
@@ -104,21 +143,12 @@ client.on('message', async message => {
                 ).addComponent(new disbut.MessageButton()
                     .setStyle("red").setLabel("upgrade factories")
                     .setID(`factory`)
-                ).addComponent(new disbut.MessageButton()
-                    .setStyle("red").setLabel("save and close")
-                    .setID(`save`)
-                ));
-
+                ))
             gamedata[sentmessage.id] = tempgamedata
-            gameintervals[sentmessage.id] = setInterval(() => {
-                const olddata = JSON.stringify(gamedata[sentmessage.id])
-                for (let i = 0; i < gamedata[sentmessage.id].upgrades.length; i++) {
-                    gamedata[sentmessage.id].cookies += upgradesdata[gamedata[sentmessage.id].upgrades[i][0]].ps * gamedata[sentmessage.id].upgrades[i][1] * 5
-                }
-                if (olddata !== JSON.stringify(gamedata[sentmessage.id])) {
-                    sentmessage.edit(embedrender(gamedata[sentmessage.id]))
-                }
-            }, 5000)
+            gamemessage[sentmessage.id] = sentmessage
+            upgrademessage[sentmessage.id] = upgradesmessage
+            upgradesmessageid[upgradesmessage.id] = sentmessage.id
+            message.delete().catch(() => { })
         } else {
             message.channel.send(`do \`${prefix} start\``)
         }
