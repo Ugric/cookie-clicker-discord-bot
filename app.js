@@ -6,6 +6,7 @@ const snooze = milliseconds => new Promise((resolve) => setTimeout(resolve, mill
 disbut(client);
 
 const gamedata = {}
+const lastgamedata = {}
 
 const gamemessage = {}
 
@@ -16,15 +17,16 @@ const upgradebuttons = ["clicker", "grandma", "factory"]
 
 setInterval(() => {
     for (game in gamedata) {
-        const olddata = JSON.stringify(gamedata[game])
+        const olddata = JSON.stringify(lastgamedata[game])
         for (let i = 0; i < gamedata[game].upgrades.length; i++) {
-            gamedata[game].cookies += upgradesdata[gamedata[game].upgrades[i][0]].ps * gamedata[game].upgrades[i][1] * 5
+            gamedata[game].cookies += upgradesdata[gamedata[game].upgrades[i][0]].ps * gamedata[game].upgrades[i][1] * 2.5
         }
         if (olddata !== JSON.stringify(gamedata[game])) {
-            gamemessage[game].edit(embedrender(gamedata[game]))
+            gamemessage[game].edit(embedrender(gamedata[game])).catch(() => { })
+            lastgamedata[game] = gamedata[game]
         }
     }
-}, 5000)
+}, 2500)
 
 
 
@@ -62,7 +64,6 @@ client.on('clickButton', async (button) => {
             messageid = upgradesmessageid[button.message.id]
         }
         if (button.clicker.user && messageid in gamedata && button.clicker.user.id == gamedata[messageid].user.id) {
-            const olddata = JSON.stringify(gamedata[messageid])
             if (button.id == "click") {
                 gamedata[button.message.id].cookies++
             } else if (button.id == "togglebuymax") {
@@ -85,10 +86,8 @@ client.on('clickButton', async (button) => {
                 upgrademessage[messageid].delete()
                 const databuffer = Buffer.from(JSON.stringify(data)).toString('base64')
                 button.clicker.user.send(`game saved, when you want to load the game do:\`\`\`${prefix} start ${databuffer}\`\`\``).catch(() => { })
+                button.reply.defer().catch(() => { })
                 return
-            }
-            if (olddata !== JSON.stringify(gamedata[messageid])) {
-                gamemessage[messageid].edit(embedrender(gamedata[messageid])).catch(() => { })
             }
         } button.reply.defer().catch(() => { })
 
@@ -100,61 +99,66 @@ client.on('message', async message => {
         const command = message.content.split(" ")
         if (command.length > 0 && command[0] == prefix) {
             command.shift()
-            if (command.length > 0 && command[0] == "start") {
-                command.shift()
-                const tempgamedata = {
-                    user: {
-                        tag: message.author.tag,
-                        id: message.author.id,
-                        avatarURL: message.author.avatarURL()
-                    }, cookies: 0, upgrades: [
-                        ["clickers", 0],
-                        ["grandmas", 0],
-                        ["factories", 0]
-                    ],
-                    buymax: true
-                }
-                if (command.length > 0) {
-                    try {
-                        const sentdata = JSON.parse(Buffer.from(command[0], 'base64').toString('ascii'))
-                        tempgamedata.cookies = sentdata.cookies
-                        tempgamedata.upgrades = sentdata.upgrades
-                        tempgamedata.buymax = sentdata.buymax
-                    } catch {
-                        message.reply(`could not load game from that game data are you sure you pasted it properly?`)
-                        return
+            if (command.length > 0) {
+                if (command[0] == "start") {
+                    command.shift()
+                    const tempgamedata = {
+                        user: {
+                            tag: message.author.tag,
+                            id: message.author.id,
+                            avatarURL: message.author.avatarURL()
+                        }, cookies: 0, upgrades: [
+                            ["clickers", 0],
+                            ["grandmas", 0],
+                            ["factories", 0]
+                        ],
+                        buymax: true
                     }
+                    if (command.length > 0) {
+                        try {
+                            const sentdata = JSON.parse(Buffer.from(command[0], 'base64').toString('ascii'))
+                            tempgamedata.cookies = sentdata.cookies
+                            tempgamedata.upgrades = sentdata.upgrades
+                            tempgamedata.buymax = sentdata.buymax
+                        } catch {
+                            message.reply(`could not load game from that game data are you sure you pasted it properly?`)
+                            return
+                        }
+                    }
+                    const sentmessage = await message.reply(embedrender(tempgamedata), new disbut.MessageActionRow()
+                        .addComponent(new disbut.MessageButton()
+                            .setStyle("red").setLabel("🍪")
+                            .setID(`click`)
+                        ).addComponent(new disbut.MessageButton()
+                            .setStyle("red").setLabel("toggle buy max")
+                            .setID(`togglebuymax`)
+                        ).addComponent(new disbut.MessageButton()
+                            .setStyle("red").setLabel("save and close")
+                            .setID(`save`)
+                        ));
+                    const upgradesmessage = await message.reply(new Discord.MessageEmbed()
+                        .setColor('#6e5000')
+                        .setTitle('UPGRADES'), new disbut.MessageActionRow().addComponent(new disbut.MessageButton()
+                            .setStyle("red").setLabel("upgrade clickers")
+                            .setID(`clicker`)
+                        ).addComponent(new disbut.MessageButton()
+                            .setStyle("red").setLabel("upgrade grandmas")
+                            .setID(`grandma`)
+                        ).addComponent(new disbut.MessageButton()
+                            .setStyle("red").setLabel("upgrade factories")
+                            .setID(`factory`)
+                        ))
+                    lastgamedata[sentmessage.id] = tempgamedata
+                    gamedata[sentmessage.id] = tempgamedata
+                    gamemessage[sentmessage.id] = sentmessage
+                    upgrademessage[sentmessage.id] = upgradesmessage
+                    upgradesmessageid[upgradesmessage.id] = sentmessage.id
+                    message.delete().catch(() => { })
+                } else if (command[0] == "gamechannel") {
+
+                } else {
+                    message.channel.send(`do \`${prefix} start\``).catch(() => { })
                 }
-                const sentmessage = await message.reply(embedrender(tempgamedata), new disbut.MessageActionRow()
-                    .addComponent(new disbut.MessageButton()
-                        .setStyle("red").setLabel("🍪")
-                        .setID(`click`)
-                    ).addComponent(new disbut.MessageButton()
-                        .setStyle("red").setLabel("toggle buy max")
-                        .setID(`togglebuymax`)
-                    ).addComponent(new disbut.MessageButton()
-                        .setStyle("red").setLabel("save and close")
-                        .setID(`save`)
-                    ));
-                const upgradesmessage = await message.reply(new Discord.MessageEmbed()
-                    .setColor('#6e5000')
-                    .setTitle('UPGRADES'), new disbut.MessageActionRow().addComponent(new disbut.MessageButton()
-                        .setStyle("red").setLabel("upgrade clickers")
-                        .setID(`clicker`)
-                    ).addComponent(new disbut.MessageButton()
-                        .setStyle("red").setLabel("upgrade grandmas")
-                        .setID(`grandma`)
-                    ).addComponent(new disbut.MessageButton()
-                        .setStyle("red").setLabel("upgrade factories")
-                        .setID(`factory`)
-                    ))
-                gamedata[sentmessage.id] = tempgamedata
-                gamemessage[sentmessage.id] = sentmessage
-                upgrademessage[sentmessage.id] = upgradesmessage
-                upgradesmessageid[upgradesmessage.id] = sentmessage.id
-                message.delete().catch(() => { })
-            } else {
-                message.channel.send(`do \`${prefix} start\``).catch(() => { })
             }
         }
     } catch { }
