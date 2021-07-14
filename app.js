@@ -1,7 +1,7 @@
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const disbut = require('discord-buttons');
-const { token } = require("./config.json")
+const token = require("./token.json")
 const snooze = milliseconds => new Promise((resolve) => setTimeout(resolve, milliseconds))
 disbut(client);
 
