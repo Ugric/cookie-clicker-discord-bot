@@ -1,6 +1,7 @@
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const disbut = require('discord-buttons');
+const { token } = require("./config.json")
 const snooze = milliseconds => new Promise((resolve) => setTimeout(resolve, milliseconds))
 disbut(client);
 
@@ -95,4 +96,4 @@ client.on('message', async message => {
     }
 });
 
-client.login('ODY0NjA3OTU0NDU5ODIwMDgz.YO365w.Mnlu1hw8LXsthT1IwCjrNlT3AF8');
+client.login(token);
