@@ -17,13 +17,13 @@ const upgradebuttons = ["clicker", "grandma", "factory"]
 
 setInterval(() => {
     for (game in gamedata) {
-        const olddata = JSON.stringify(lastgamedata[game])
+        const olddata = lastgamedata[game]
         for (let i = 0; i < gamedata[game].upgrades.length; i++) {
             gamedata[game].cookies += upgradesdata[gamedata[game].upgrades[i][0]].ps * gamedata[game].upgrades[i][1] * 2.5
         }
         if (olddata !== JSON.stringify(gamedata[game])) {
             gamemessage[game].edit(embedrender(gamedata[game])).catch(() => { })
-            lastgamedata[game] = gamedata[game]
+            lastgamedata[game] = JSON.stringify(gamedata[game])
         }
     }
 }, 2500)
@@ -148,7 +148,7 @@ client.on('message', async message => {
                             .setStyle("red").setLabel("upgrade factories")
                             .setID(`factory`)
                         ))
-                    lastgamedata[sentmessage.id] = tempgamedata
+                    lastgamedata[sentmessage.id] = JSON.stringify(tempgamedata)
                     gamedata[sentmessage.id] = tempgamedata
                     gamemessage[sentmessage.id] = sentmessage
                     upgrademessage[sentmessage.id] = upgradesmessage
