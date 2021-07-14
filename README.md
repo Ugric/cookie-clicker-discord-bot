@@ -1,5 +1,5 @@
+<img align="right" alt="icon" src="./master/images/cci.jpg" height="150px">
 # Cookie Clicker Discord bot
-![cookie clicker image](https://github.com/Ugric/cookie-clicker-discord-bot/blob/master/images/cci.jpg?raw=true)
 written in javascript. in like 2 hours lol.
 
 its a discord bot
