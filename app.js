@@ -80,10 +80,14 @@ client.on('clickButton', async (button) => {
             }
             else if (button.id == "save") {
                 const data = gamedata[messageid]
-                delete gamedata[messageid]
                 delete data.user
+                delete gamedata[messageid]
+                delete lastgamedata[messageid]
                 gamemessage[messageid].delete()
+                delete gamemessage[messageid]
                 upgrademessage[messageid].delete()
+                delete upgradesmessageid[upgrademessage[messageid].id]
+                delete upgrademessage[messageid]
                 const databuffer = Buffer.from(JSON.stringify(data)).toString('base64')
                 button.clicker.user.send(`game saved, when you want to load the game do:\`\`\`${prefix} start ${databuffer}\`\`\``).catch(() => { })
                 button.reply.defer().catch(() => { })
